@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Swarm Robots – Continuous Space</title>
+  <meta charset="utf-8">
+  <script src="cell_robot_continuous.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 16px; background: #111827; color: #e2e8f0; }
+    h2   { margin: 0 0 12px; font-size: 17px; color: #e2e8f0; letter-spacing: 0.02em; }
+
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+
+    button {
+      padding: 5px 14px; border: none; border-radius: 5px; cursor: pointer;
+      background: #1e40af; color: #fff; font-size: 13px; transition: background 0.15s;
+    }
+    button:hover { background: #2563eb; }
+    button#buttonReset { background: #374151; }
+    button#buttonReset:hover { background: #4b5563; }
+    button#buttonKill     { background: #7f1d1d; }
+    button#buttonKill:hover { background: #991b1b; }
+    button#buttonSetStart { background: #374151; }
+    button#buttonSetStart:hover { background: #4b5563; }
+    button#buttonSetStart.active { background: #6d28d9; }
+    button#buttonSetStart.active:hover { background: #7c3aed; }
+
+    label { font-size: 13px; display: flex; align-items: center; gap: 5px; }
+    input[type=checkbox] { accent-color: #60a5fa; }
+    input[type=range]    { width: 90px; accent-color: #60a5fa; }
+    select {
+      background: #1e293b; color: #e2e8f0; border: 1px solid #475569;
+      border-radius: 4px; padding: 2px 6px; font-size: 13px;
+    }
+
+    .sep { width: 1px; height: 22px; background: #374151; margin: 0 4px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #64748b; padding: 2px 6px;
+      background: #1e293b; border-radius: 3px;
+    }
+
+    canvas { display: block; border: 1px solid #334155; margin-top: 10px; border-radius: 4px; }
+
+    #stats {
+      margin-top: 6px; font-family: monospace; font-size: 12px;
+      background: #1e293b; padding: 5px 10px; border-radius: 4px;
+      min-height: 18px; color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Swarm Robots in Continuous Space</h2>
+
+<!-- Row 1: Main simulation controls -->
+<div class="row">
+  <button id="buttonReset">Cluster (Reset)</button>
+  <button id="buttonRandom">Scatter (Initial)</button>
+  <button id="buttonStart">Start</button>
+  <div class="sep"></div>
+  <button id="buttonSpawn">+ Dormant</button>
+  <button id="buttonKill">Kill 20%</button>
+  <button id="buttonSetStart">Set Start Pos</button>
+  <div class="sep"></div>
+  <label>Robots:
+    <input type="range" id="rngN" min="20" max="300" step="5" value="80">
+    <span id="lblN">80</span>
+  </label>
+</div>
+
+<!-- Row 2: Scenario toggles -->
+<div class="row">
+  <label><input type="checkbox" id="chkLight" checked> Light source</label>
+  <label><input type="checkbox" id="chkLight2"> Light 2</label>
+  <label><input type="checkbox" id="chkWall"> Wall + gap</label>
+  <label><input type="checkbox" id="chkWall2"> Wall + 2 gaps</label>
+  <div class="sep"></div>
+  <label><input type="checkbox" id="chkNoise"> Sensor Noise</label>
+  <label><input type="checkbox" id="chkHet"> Heterogeneous</label>
+  <label><input type="checkbox" id="chkCollFail"> Auto-fail</label>
+</div>
+
+<!-- Row 3: Dynamic light controls -->
+<div class="row">
+  <span class="section-label">Light mode</span>
+  <select id="selLightMode">
+    <option value="static">Static</option>
+    <option value="oscillate">Oscillate X</option>
+    <option value="circular">Circular</option>
+  </select>
+  <label>Speed:
+    <input type="range" id="rngLightSpeed" min="0.005" max="0.10" step="0.005" value="0.03">
+    <span id="lblLightSpeed">0.030</span>
+  </label>
+  <div class="sep"></div>
+  <label>Friction γ:
+    <input type="range" id="rngFriction" min="0.50" max="0.99" step="0.01" value="0.85">
+    <span id="lblFriction">0.85</span>
+  </label>
+  <label>Noise σ:
+    <input type="range" id="rngNoiseSigma" min="0" max="3" step="0.1" value="0">
+    <span id="lblNoiseSigma">0.00</span>
+  </label>
+  <div class="sep"></div>
+  <label>Fail threshold:
+    <input type="range" id="rngCollThresh" min="20" max="200" step="5" value="60">
+    <span id="lblCollThresh">60</span>
+  </label>
+</div>
+
+<!-- Hidden defaults (algorithm parameters) -->
+<input type="hidden" id="inpP"   value="8">
+<input type="hidden" id="inpL"   value="10">
+<input type="hidden" id="inpR"   value="0.2">
+<input type="hidden" id="inpW"   value="0.2">
+<input type="hidden" id="inpGap" value="7">
+
+<!-- Row 4: Light 2 controls (hidden until Light 2 is checked) -->
+<div class="row" id="rowLight2" style="display:none">
+  <span class="section-label">Light 2 mode</span>
+  <select id="selLightMode2">
+    <option value="static">Static</option>
+    <option value="oscillate">Oscillate X</option>
+    <option value="circular">Circular</option>
+  </select>
+  <label>Speed:
+    <input type="range" id="rngLightSpeed2" min="0.005" max="0.10" step="0.005" value="0.03">
+    <span id="lblLightSpeed2">0.030</span>
+  </label>
+</div>
+
+<canvas id="Morph-Model" width="1400" height="600"></canvas>
+
+<div id="stats">Step: 0 | Active: 0 | Dormant: 0 | MEI: –</div>
+
+</body>
+</html>
